@@ -45,7 +45,13 @@ function sortRM (tasks) {
     return tasks.sort((a,b) => a.period-b.period)
 }
 
-function RM (tasks, executionTime) {
+function sortEDF (tasks) {
+    return tasks.sort((a,b) => a.deadline-b.deadline)
+}
+
+function schedule({tasks, executionTime, algorithm}) {
+    let EDF = algorithm === 'EDF';
+    let sort = EDF ? sortEDF : sortRM;
     let currentTime = 0;
     let readyList = [];
     tasks.forEach(task => {
@@ -58,7 +64,7 @@ function RM (tasks, executionTime) {
             deadline: currentTime + task.period,
         })
     });
-    readyList = sortRM(readyList);
+    readyList = sort(readyList);
     let executingTask = -1;
     while (currentTime < executionTime) {
         for (let i = 0; i < readyList.length; i++) {
@@ -71,18 +77,18 @@ function RM (tasks, executionTime) {
 
         if (executingTask > -1) {
             let currentTask = readyList[executingTask];
-            console.log(currentTime, currentTask.name);
+            // console.log(currentTime, currentTask.name);
             currentTask.execution--;
             // task completed
             if (currentTask.execution === 0) {
                 currentTask.arrival += currentTask.period;
                 currentTask.deadline = currentTask.arrival + currentTask.period;
                 currentTask.execution = currentTask.wcet;
-                readyList = sortRM(readyList);
+                if (EDF) readyList = sort(readyList);
                 executingTask = -1;
             }
         } else {
-            console.log(currentTime, 'IDLE')
+            // console.log(currentTime, 'IDLE')
         }
         readyList.forEach((task) => {
             if (task.deadline < currentTime) throw new Error('Missed a deadline')
@@ -93,5 +99,5 @@ function RM (tasks, executionTime) {
 
 parseCommand().then(data => {
     console.dir(data, { depth: null });
-    RM(data.tasks, data.executionDuration);
+    schedule(data);
 })
