@@ -80,7 +80,6 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
                     lastExecutedTask = executionOrder[executionOrder.length-1];
                 }
                 if (lastExecutedTask.name !== currentTask.name) {
-                    lastExecutedTask.end = currentTime - 1;
                     executionOrder.push({
                         start: currentTime,
                         hardware: hardware[hardwareUsed],
@@ -104,8 +103,16 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
                 executingTask = -1;
             }
         } else {
-            // console.log(currentTime, 'IDLE')
+            let lastExecutedTask = executionOrder[executionOrder.length-1];
+            if (lastExecutedTask.name !== 'IDLE') {
+                executionOrder.push({
+                    start: currentTime,
+                    hardware: hardware[hardware.length-1],
+                    name: 'IDLE',
+                });
+            }
         }
+        executionOrder[executionOrder.length-1].end = currentTime;
         readyList.forEach((task) => {
             if (task.deadline < currentTime) throw new Error('Missed a deadline')
         });
@@ -114,9 +121,28 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
     return executionOrder;
 }
 
+function processOutput(data) {
+    let output = {
+        energy: 0,
+        idle: 0,
+        execution: 0,
+    };
+    return data.reduce((aggregated, row) => {
+        let execution = row.end - row.start + 1;
+        let energyConsumed = row.hardware.power * execution / 1000;
+        if (row.name === 'IDLE') {
+            aggregated.idle += execution;
+        } else {
+            aggregated.execution += execution;
+        }
+        aggregated.energy += energyConsumed;
+        console.log(`${row.start} ${row.name} ${row.hardware.frequency} ${execution} ${energyConsumed}J`);
+        return aggregated;
+    }, output)
+}
+
 parseCommand().then(data => {
     console.dir(data, { depth: null });
-    let executionOrder = schedule(data);
-    // console.dir(executionOrder, {depth: null});
-    
+    let output = processOutput(schedule(data));
+    console.log(`Total energy Consumed: ${output.energy}J, idle: ${(output.idle/data.executionDuration*100).toFixed(2)}% (${output.idle}/${data.executionDuration}), execution: ${(output.execution/data.executionDuration*100).toFixed(2)}% (${output.execution}/${data.executionDuration})`)
 })
