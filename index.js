@@ -49,28 +49,44 @@ function sortEDF (tasks) {
     return tasks.sort((a,b) => a.deadline-b.deadline)
 }
 
-function schedule({tasks, executionTime, algorithm}) {
+function schedule({tasks, executionDuration, algorithm, hardware}) {
     let EDF = algorithm === 'EDF';
     let sort = EDF ? sortEDF : sortRM;
     let currentTime = 0;
+    let hardwareUsed = 0;
     let readyList = [];
     tasks.forEach(task => {
         readyList.push({
             name: task.name,
             arrival: currentTime,
             period: task.period,
-            execution: task.execution[0],
-            wcet: task.execution[0],
+            execution: task.execution[hardwareUsed],
+            wcet: task.execution[hardwareUsed],
             deadline: currentTime + task.period,
         })
     });
     readyList = sort(readyList);
+    let executionOrder = [];
     let executingTask = -1;
-    while (currentTime < executionTime) {
+    while (currentTime < executionDuration) {
         for (let i = 0; i < readyList.length; i++) {
-            if (readyList[i].arrival <= currentTime) {
+            let currentTask = readyList[i];
+            if (currentTask.arrival <= currentTime) {
                 executingTask = i;
-                readyList[i].executionStart = currentTime;
+                let lastExecutedTask;
+                if (executionOrder.length === 0) {
+                    lastExecutedTask = {}
+                } else {
+                    lastExecutedTask = executionOrder[executionOrder.length-1];
+                }
+                if (lastExecutedTask.name !== currentTask.name) {
+                    lastExecutedTask.end = currentTime - 1;
+                    executionOrder.push({
+                        start: currentTime,
+                        hardware: hardware[hardwareUsed],
+                        name: readyList[i].name,
+                    });
+                }
                 break;
             }
         }
@@ -95,9 +111,12 @@ function schedule({tasks, executionTime, algorithm}) {
         });
         currentTime++;
     }
+    return executionOrder;
 }
 
 parseCommand().then(data => {
     console.dir(data, { depth: null });
-    schedule(data);
+    let executionOrder = schedule(data);
+    // console.dir(executionOrder, {depth: null});
+    
 })
