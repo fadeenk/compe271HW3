@@ -60,7 +60,7 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
             name: task.name,
             arrival: currentTime,
             period: task.period,
-            execution: task.execution[hardwareUsed],
+            remainingExecution: task.execution[hardwareUsed],
             wcet: task.execution[hardwareUsed],
             deadline: currentTime + task.period,
         })
@@ -93,12 +93,12 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
         if (executingTask > -1) {
             let currentTask = readyList[executingTask];
             // console.log(currentTime, currentTask.name);
-            currentTask.execution--;
+            currentTask.remainingExecution--;
             // task completed
-            if (currentTask.execution === 0) {
+            if (currentTask.remainingExecution === 0) {
                 currentTask.arrival += currentTask.period;
                 currentTask.deadline = currentTask.arrival + currentTask.period;
-                currentTask.execution = currentTask.wcet;
+                currentTask.remainingExecution = currentTask.wcet;
                 if (EDF) readyList = sort(readyList);
                 executingTask = -1;
             }
@@ -114,7 +114,10 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
         }
         executionOrder[executionOrder.length-1].end = currentTime;
         readyList.forEach((task) => {
-            if (task.deadline < currentTime) throw new Error('Missed a deadline')
+            if (task.deadline < currentTime) {
+                console.error(task);
+                throw new Error('Missed a deadline')
+            }
         });
         currentTime++;
     }
@@ -145,4 +148,8 @@ parseCommand().then(data => {
     console.dir(data, { depth: null });
     let output = processOutput(schedule(data));
     console.log(`Total energy Consumed: ${output.energy}J, idle: ${(output.idle/data.executionDuration*100).toFixed(2)}% (${output.idle}/${data.executionDuration}), execution: ${(output.execution/data.executionDuration*100).toFixed(2)}% (${output.execution}/${data.executionDuration})`)
+}).catch(err => {
+    if (err.message === 'Missed a deadline') {
+        console.error('Missed a deadline for the task above');
+    }
 })
