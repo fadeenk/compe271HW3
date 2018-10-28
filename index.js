@@ -19,12 +19,12 @@ function parseCommand() {
                     frequency: hardwareFreq[i-2],
                 });
                 for (let i = 1; i <= tasksNumber; i ++) {
-                    let power = [];
-                    for (let j = 2; j < fileData[i].length; j++) power.push(parseInt(fileData[i][j]));
+                    let execution = [];
+                    for (let j = 2; j < fileData[i].length; j++) execution.push(parseInt(fileData[i][j]));
                     tasks.push({
                         name: fileData[i][0],
                         period: parseInt(fileData[i][1]),
-                        power,
+                        execution,
                     })
                 }
             } catch (e) {
@@ -41,8 +41,57 @@ function parseCommand() {
     }))
 }
 
+function sortRM (tasks) {
+    return tasks.sort((a,b) => a.period-b.period)
+}
 
+function RM (tasks, executionTime) {
+    let currentTime = 0;
+    let readyList = [];
+    tasks.forEach(task => {
+        readyList.push({
+            name: task.name,
+            arrival: currentTime,
+            period: task.period,
+            execution: task.execution[0],
+            wcet: task.execution[0],
+            deadline: currentTime + task.period,
+        })
+    });
+    readyList = sortRM(readyList);
+    let executingTask = -1;
+    while (currentTime < executionTime) {
+        for (let i = 0; i < readyList.length; i++) {
+            if (readyList[i].arrival <= currentTime) {
+                executingTask = i;
+                readyList[i].executionStart = currentTime;
+                break;
+            }
+        }
+
+        if (executingTask > -1) {
+            let currentTask = readyList[executingTask];
+            console.log(currentTime, currentTask.name);
+            currentTask.execution--;
+            // task completed
+            if (currentTask.execution === 0) {
+                currentTask.arrival += currentTask.period;
+                currentTask.deadline = currentTask.arrival + currentTask.period;
+                currentTask.execution = currentTask.wcet;
+                readyList = sortRM(readyList);
+                executingTask = -1;
+            }
+        } else {
+            console.log(currentTime, 'IDLE')
+        }
+        readyList.forEach((task) => {
+            if (task.deadline < currentTime) throw new Error('Missed a deadline')
+        });
+        currentTime++;
+    }
+}
 
 parseCommand().then(data => {
     console.dir(data, { depth: null });
+    RM(data.tasks, data.executionDuration);
 })
