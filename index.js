@@ -55,7 +55,17 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
     let currentTime = 0;
     let hardwareUsed = 0;
     let readyList = [];
+    let energy = []
     tasks.forEach(task => {
+        let taskEnergy = {};
+        for (let i =0; i < hardware.length-1; i ++) {
+            let consumption = hardware[i].power * task.execution[i];
+            // we only care about energy reduction if using slower hardware increases consumption we ignore it
+            if (i === 0 || consumption < taskEnergy[i-1].consumption) {
+                taskEnergy[i] = {consumption, util: task.execution[i]/task.period, execution: task.execution[i]}
+            }
+        }
+        energy.push(taskEnergy)
         readyList.push({
             name: task.name,
             arrival: currentTime,
@@ -65,6 +75,8 @@ function schedule({tasks, executionDuration, algorithm, hardware}) {
             deadline: currentTime + task.period,
         })
     });
+    // TODO find combination of energy with highest utilization
+    console.log(energy);
     readyList = sort(readyList);
     let executionOrder = [];
     let executingTask = -1;
@@ -152,4 +164,5 @@ parseCommand().then(data => {
     if (err.message === 'Missed a deadline') {
         console.error('Missed a deadline for the task above');
     }
+    console.error (err)
 })
