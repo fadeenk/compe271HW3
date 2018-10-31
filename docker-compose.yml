@@ -1,0 +1,9 @@
+
+version: '3.3'
+services:
+  compiler:
+    image: node:8-jessie
+    volumes:
+    - ./:/var/HW3
+    command:
+      bash -c "cd /var/HW3 && node index.js input1.txt EDF EE"
